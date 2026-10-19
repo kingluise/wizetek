@@ -1,3 +1,4 @@
+
 document.documentElement.classList.add("js-reveal");
 
 const menuButton = document.querySelector(".menu-toggle");
@@ -8,7 +9,10 @@ if (menuButton && nav) {
     const isOpen = nav.classList.toggle("open");
     document.body.classList.toggle("menu-open", isOpen);
     menuButton.setAttribute("aria-expanded", String(isOpen));
-    menuButton.setAttribute("aria-label", isOpen ? "Close navigation menu" : "Open navigation menu");
+    menuButton.setAttribute(
+      "aria-label",
+      isOpen ? "Close navigation menu" : "Open navigation menu"
+    );
     menuButton.textContent = isOpen ? "×" : "☰";
   });
 
@@ -24,6 +28,7 @@ if (menuButton && nav) {
 }
 
 const currentPage = location.pathname.split("/").pop() || "index.html";
+
 document.querySelectorAll(".nav-links a[data-page]").forEach(link => {
   if (link.dataset.page === currentPage) {
     link.classList.add("active");
@@ -32,7 +37,11 @@ document.querySelectorAll(".nav-links a[data-page]").forEach(link => {
 });
 
 const revealItems = document.querySelectorAll(".reveal");
-if ("IntersectionObserver" in window && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+
+if (
+  "IntersectionObserver" in window &&
+  !window.matchMedia("(prefers-reduced-motion: reduce)").matches
+) {
   const observer = new IntersectionObserver(entries => {
     entries.forEach(entry => {
       if (entry.isIntersecting) {
@@ -41,6 +50,7 @@ if ("IntersectionObserver" in window && !window.matchMedia("(prefers-reduced-mot
       }
     });
   }, { threshold: 0.12 });
+
   revealItems.forEach(item => observer.observe(item));
 } else {
   revealItems.forEach(item => item.classList.add("is-visible"));
@@ -48,54 +58,102 @@ if ("IntersectionObserver" in window && !window.matchMedia("(prefers-reduced-mot
 
 const filterButtons = document.querySelectorAll("[data-filter]");
 const projectCards = document.querySelectorAll("[data-category]");
+
 filterButtons.forEach(button => {
   button.addEventListener("click", () => {
     filterButtons.forEach(item => {
       item.classList.remove("active");
       item.setAttribute("aria-pressed", "false");
     });
+
     button.classList.add("active");
     button.setAttribute("aria-pressed", "true");
+
     const filter = button.dataset.filter;
+
     projectCards.forEach(card => {
-      card.hidden = !(filter === "all" || card.dataset.category === filter);
+      card.hidden = !(
+        filter === "all" || card.dataset.category === filter
+      );
     });
   });
 });
 
+// Contact form: submit directly to Formspree.
 const contactForm = document.querySelector("#contact-form");
+
 if (contactForm) {
-  contactForm.addEventListener("submit", event => {
+  const submitButton = contactForm.querySelector('button[type="submit"]');
+  const status = document.querySelector("#form-status");
+
+  contactForm.addEventListener("submit", async event => {
     event.preventDefault();
+
     if (!contactForm.reportValidity()) return;
 
-    const formData = new FormData(contactForm);
-    const email = contactForm.dataset.contactEmail || "YOUR-BUSINESS-EMAIL@example.com";
-    const name = formData.get("name") || "";
-    const senderEmail = formData.get("email") || "";
-    const company = formData.get("company") || "Not provided";
-    const service = formData.get("service") || "Not specified";
-    const budget = formData.get("budget") || "Not specified";
-    const message = formData.get("message") || "";
-
-    const subject = encodeURIComponent(`Project enquiry: ${service}`);
-    const body = encodeURIComponent(
-      `Name: ${name}\nEmail: ${senderEmail}\nCompany: ${company}\nService: ${service}\nBudget: ${budget}\n\nProject details:\n${message}`
-    );
-
-    const status = document.querySelector("#form-status");
-    if (email === "YOUR-BUSINESS-EMAIL@example.com" || !email.includes("@")) {
-      status.textContent = "The form is validated, but the business email is still a placeholder. Update the email address in contact.html before using this form.";
-      status.classList.add("show");
-      return;
+    if (status) {
+      status.textContent = "";
+      status.classList.remove("show");
     }
 
-    status.textContent = "Your email application should open with the enquiry prepared. You must send the email there; this static website does not send or store messages itself.";
-    status.classList.add("show");
-    window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
+    if (submitButton) {
+      submitButton.disabled = true;
+      submitButton.textContent = "Sending enquiry...";
+    }
+
+    try {
+      const response = await fetch(contactForm.action, {
+        method: "POST",
+        body: new FormData(contactForm),
+        headers: {
+          Accept: "application/json"
+        }
+      });
+
+      if (!response.ok) {
+        let errorMessage = "We couldn't submit your enquiry. Please try again.";
+
+        try {
+          const result = await response.json();
+
+          if (result.errors && result.errors.length) {
+            errorMessage = result.errors
+              .map(error => error.message)
+              .join(" ");
+          } else if (result.error) {
+            errorMessage = result.error;
+          }
+        } catch {
+          // Keep the default error message if no JSON response is available.
+        }
+
+        throw new Error(errorMessage);
+      }
+
+      contactForm.reset();
+
+      if (status) {
+        status.textContent =
+          "Thank you! Your enquiry has been submitted successfully. We'll get back to you as soon as possible.";
+        status.classList.add("show");
+      }
+    } catch (error) {
+      if (status) {
+        status.textContent =
+          error.message ||
+          "Something went wrong. Please try again or email support@wizetekit.top directly.";
+        status.classList.add("show");
+      }
+    } finally {
+      if (submitButton) {
+        submitButton.disabled = false;
+        submitButton.textContent = "Send Project Enquiry ↗";
+      }
+    }
   });
 }
 
+// Automatically update the copyright year.
 document.querySelectorAll("[data-year]").forEach(node => {
   node.textContent = new Date().getFullYear();
 });
